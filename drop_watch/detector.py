@@ -164,11 +164,17 @@ class Detector:
                 )
 
         # ---- Wi-Fi: SSID/BSSID change = roaming or reconnect = drop
+        # Skip "Wi-Fi disconnected" events when the radio is simply OFF — that's
+        # expected on a wired-only machine and floods the inbox with noise.
         if s.sample_type == "wifi":
             cur_ssid = s.detail.get("ssid")
             cur_bssid = s.detail.get("bssid")
             cur_signal = s.detail.get("signal_pct")
-            if not s.success:
+            cur_state = (s.detail.get("state") or "").lower()
+            if not s.success and cur_state.startswith(("disconnected", "not connected", "off")):
+                # Radio off / not connected — don't fire a "drop" event.
+                pass
+            elif not s.success:
                 ev = self.store.add_drop_event(
                     start_ts=now, end_ts=now, severity="drop",
                     sample_type="wifi", target=cur_ssid,

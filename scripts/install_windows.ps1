@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Install drop-watch as a Windows Task Scheduler job that runs hidden at logon.
 
@@ -16,10 +16,18 @@ $ErrorActionPreference = 'Stop'
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = Resolve-Path (Join-Path $ScriptDir '..')
 
-# 1. Find Python
-$python = (Get-Command python.exe -ErrorAction SilentlyContinue).Source
+# 1. Find Python — prefer system Python 3.10+ over a venv interpreter so the
+# scheduled task runs as a plain Python process, not a venv-bound one.
+$candidates = @($(Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\python.exe'), $(Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'), $(Join-Path $env:LOCALAPPDATA 'Programs\Python\Python310\python.exe'))
+$python = $null
+foreach ($p in $candidates) {
+    if ($p -and (Test-Path $p)) { $python = $p; break }
+}
 if (-not $python) {
-    Write-Error "python.exe not found on PATH. Install Python 3.10+ and ensure it's on PATH."
+    $python = (Get-Command python.exe -ErrorAction SilentlyContinue).Source
+}
+if (-not $python) {
+    Write-Error "python.exe not found. Install Python 3.10+ (e.g. python.org installer) and re-run."
     exit 1
 }
 Write-Host "Using Python: $python"
@@ -38,16 +46,22 @@ $xml = $xml.Replace('PYTHON_EXE', $python)
 $xml = $xml.Replace('PROJECT_DIR', $ProjectDir)
 $xml = $xml.Replace('CONFIG_PATH', (Join-Path $ProjectDir 'config.local.json'))
 $built = Join-Path $ProjectDir 'scripts\drop-watch.built.xml'
-Set-Content -Path $built -Value $xml -Encoding Unicode
+# Write as UTF-16 LE with BOM — the schtasks.exe CLI on Windows expects
+# exactly this encoding for /XML input.
+[System.IO.File]::WriteAllText($built, $xml, [System.Text.UnicodeEncoding]::new($false, $true))
 
-# 4. Register the task
+# 4. Register the task via schtasks.exe (Register-ScheduledTask -Xml has
+# problems with the PowerShell 5.1 string re-encoding on some hosts).
 $taskName = 'drop-watch'
-$existing = Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
-if ($existing) {
-    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+$ErrorActionPreference = 'Continue'
+schtasks.exe /Query /TN $taskName *> $null
+$ErrorActionPreference = 'Stop'
+if ($LASTEXITCODE -eq 0) {
+    schtasks.exe /Delete /TN $taskName /F
     Write-Host "Removed existing task '$taskName'."
 }
-Register-ScheduledTask -TaskName $taskName -Xml (Get-Content $built -Raw) | Out-Null
+schtasks.exe /Create /TN $taskName /XML $built
 Write-Host "Registered task '$taskName'. It will run 30s after each logon."
-Write-Host "Start it now with: Start-ScheduledTask -TaskName drop-watch"
-Write-Host "Tail logs with   : Get-Content '$ProjectDir\logs\drop_watch.log' -Wait"
+Write-Host "Start it now with: schtasks.exe /Run /TN drop-watch"
+$logFile = Join-Path $ProjectDir 'logs\drop_watch.log'
+Write-Host ("Tail logs with   : Get-Content '" + $logFile + "' -Wait")
