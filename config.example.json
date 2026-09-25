@@ -1,0 +1,38 @@
+{
+  "_comment": "Copy to config.local.json and customize. The .local file is gitignored so your real IPs/SSIDs never leave this machine.",
+  "targets": {
+    "router_ip": "192.168.1.1",
+    "internet_ips": ["8.8.8.8", "1.1.1.1"],
+    "dns_resolvers": ["1.1.1.1", "8.8.8.8"],
+    "dns_names": ["google.com", "cloudflare.com"],
+    "http_probe_url": "https://httpbin.org/status/200",
+    "vpn_probe": null
+  },
+  "intervals_seconds": {
+    "icmp_router": 1,
+    "icmp_internet": 1,
+    "dns": 5,
+    "http": 10,
+    "wifi": 5,
+    "nic_stats": 30,
+    "vpn": 10
+  },
+  "thresholds": {
+    "icmp_loss_consecutive_to_flag_drop": 3,
+    "icmp_latency_ms_to_flag_spike": 200,
+    "dns_latency_ms_to_flag_slow": 500,
+    "dns_latency_ms_to_flag_drop": 1500,
+    "http_latency_ms_to_flag_slow": 1500,
+    "http_latency_ms_to_flag_drop": 3000
+  },
+  "retention": {
+    "raw_seconds": 86400,
+    "rollup_5s_days": 7,
+    "rollup_1m_days": 30
+  },
+  "output": {
+    "db_path": "drop_watch.db",
+    "log_dir": "logs",
+    "report_dir": "reports"
+  }
+}

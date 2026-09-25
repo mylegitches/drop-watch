@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Runtime data — never commit local captures (may contain your IPs, hostname, BSSIDs)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+logs/
+reports/
+*.log
+*.png
+
+# Local config — may contain your specific target IPs/hostnames
+config.local.json
+config.local.yaml
+*.local.json
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
