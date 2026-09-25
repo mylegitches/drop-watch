@@ -28,10 +28,18 @@ log = logging.getLogger("drop_watch")
 
 
 class Monitor:
-    def __init__(self, config: dict | None = None):
+    def __init__(self, config: dict | None = None, enable_notifications: bool = True):
         self.config = config or load_config()
         self.store = Store(self.config["output"]["db_path"])
-        self.detector = Detector(self.store, self.config.get("thresholds", {}))
+        notifier = None
+        if enable_notifications:
+            try:
+                from .notify import Notifier
+                notifier = Notifier()
+                log.info("[monitor] email notifications enabled -> %s", notifier.to)
+            except Exception as e:
+                log.warning("[monitor] notifications disabled: %s", e)
+        self.detector = Detector(self.store, self.config.get("thresholds", {}), notifier=notifier)
         self._stop = threading.Event()
         self._threads: list[threading.Thread] = []
         self._last_nic: tuple[int | None, int | None, int | None, int | None, float] | None = None

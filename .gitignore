@@ -20,6 +20,11 @@ config.local.json
 config.local.yaml
 *.local.json
 
+# Secrets — never commit credentials
+.env
+.env.*
+*.env
+
 # Editor / OS
 .vscode/
 .idea/

@@ -35,10 +35,39 @@ def cmd_run(args):
             "nic": [s.__dict__ for s in nic_stats()],
         }, indent=2, default=str))
         return
-    mon = Monitor(cfg)
+    _setup_logging(cfg)
+    mon = Monitor(cfg, enable_notifications=not getattr(args, "no_notify", False))
     install_signal_handlers(mon)
     mon.start()
     mon.wait_forever()
+
+
+def _setup_logging(cfg: dict) -> None:
+    """Send INFO+ from drop_watch.* to both stderr and a rotating log file
+    (logs/drop_watch.log). File is appended to across restarts so the
+    72-hour run produces a single contiguous log."""
+    import logging
+    from logging.handlers import RotatingFileHandler
+    from pathlib import Path
+
+    log_dir = Path(cfg.get("output", {}).get("log_dir", "logs"))
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / "drop_watch.log"
+
+    root = logging.getLogger("drop_watch")
+    root.setLevel(logging.INFO)
+    # Idempotent: clear existing handlers in case monitor.py was imported elsewhere
+    for h in list(root.handlers):
+        root.removeHandler(h)
+    fmt = logging.Formatter("%(asctime)sZ %(name)s %(levelname)s %(message)s",
+                            datefmt="%Y-%m-%dT%H:%M:%S")
+    sh = logging.StreamHandler()
+    sh.setFormatter(fmt)
+    fh = RotatingFileHandler(log_file, maxBytes=10_000_000, backupCount=3, encoding="utf-8")
+    fh.setFormatter(fmt)
+    root.addHandler(sh)
+    root.addHandler(fh)
+    logging.getLogger("drop_watch").info("[logging] writing to %s", log_file)
 
 
 def cmd_report(args):
@@ -132,6 +161,7 @@ def main(argv=None):
 
     pr = sub.add_parser("run", help="start the monitor", parents=[pre])
     pr.add_argument("--once", action="store_true", help="one-shot probe of every type and exit")
+    pr.add_argument("--no-notify", action="store_true", help="disable email drop notifications")
     pr.set_defaults(func=cmd_run, _config=pre_args.config)
 
     pp = sub.add_parser("report", help="print a summary of recent samples and drop events", parents=[pre])
