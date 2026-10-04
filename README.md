@@ -47,7 +47,8 @@ A drop is recorded when **any** of these fire:
 ### One-time
 
 ```powershell
-cd C:\Users\adamr\drop-watch
+git clone https://github.com/mylegitches/drop-watch.git
+cd drop-watch
 python -m pip install -r requirements.txt        # optional: matplotlib for graphs
 copy config.example.json config.local.json       # edit targets to your network
 pwsh -ExecutionPolicy Bypass -File .\scripts\install_windows.ps1
