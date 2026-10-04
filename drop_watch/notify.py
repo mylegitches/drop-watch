@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import socket
 import smtplib
 import ssl
 import time
@@ -96,7 +97,7 @@ class Notifier:
     @staticmethod
     def _body(e: dict, ctx: Iterable[dict] | None) -> str:
         lines = [
-            "drop-watch detected an event on box (192.168.1.164):",
+            f"drop-watch detected an event on {socket.gethostname()}:",
             "",
             f"  Time      : {e.get('start_ts')}",
             f"  Severity  : {e.get('severity', '').upper()}",
